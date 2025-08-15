@@ -21,8 +21,13 @@ jobs:
       - name: Scripti çalıştır
         run: python xyzsports.py
 
-      - name: M3U dosyasını yükle
-        uses: actions/upload-artifact@v4
-        with:
-          name: xyzvt
-          path: xyzvt.m3u
+      - name: Repo'ya commit et
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add xyzvt.m3u
+          git commit -m "Update xyzvt.m3u"
+          git push
+        env:
+          # GitHub token otomatik olarak sağlanır
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
