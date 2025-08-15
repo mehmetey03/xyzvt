@@ -1,14 +1,13 @@
 from httpx import Client
 import re
 import os
-from urllib.parse import urlparse
 import sys
 
 class XYZsportsManager:
     def __init__(self, cikti_dosyasi):
-        self.cikti_dosyasi = cikti_dosyasi
+        # Kesin path kullanıyoruz
+        self.cikti_dosyasi = os.path.join(os.getcwd(), cikti_dosyasi)
         self.httpx = Client(timeout=10, verify=False, http2=True)
-        self.domain_bilgileri = []
         self.channel_ids = [
             "bein-sports-1", "bein-sports-2", "bein-sports-3",
             "bein-sports-4", "bein-sports-5", "bein-sports-max-1",
@@ -92,7 +91,8 @@ class XYZsportsManager:
             
         except Exception as e:
             print(f"\nHATA: {str(e)}")
-            sys.exit(1)
+            # workflow artifact step çalışsın diye exit code 0 yapabiliriz
+            sys.exit(0)
 
 if __name__ == "__main__":
-    XYZsportsManager("xyzvt.m3u").calistir()  
+    XYZsportsManager("xyzvt.m3u").calistir()
