@@ -1,6 +1,5 @@
 from httpx import Client
 import re
-import os
 import sys
 
 class XYZsportsManager:
@@ -18,7 +17,7 @@ class XYZsportsManager:
     def find_working_domain(self, start=248, end=350):
         headers = {"User-Agent": "Mozilla/5.0"}
 
-        # Önce sabit bildiğimiz domaini dene
+        # Önce sabit domaini dene
         fixed_domain = 248
         fixed_url = f"https://www.xyzsports{fixed_domain}.xyz/"
         try:
@@ -29,7 +28,7 @@ class XYZsportsManager:
         except Exception as e:
             print(f"Sabit domain hatası: {e}")
 
-        # Sabit çalışmazsa tarama yap
+        # Sabit çalışmazsa tarama
         for i in range(start, end + 1):
             url = f"https://www.xyzsports{i}.xyz/"
             try:
@@ -42,7 +41,6 @@ class XYZsportsManager:
             except Exception as e:
                 print(f"Hata ({url}): {e}")
                 continue
-
         return None, None
 
     def find_dynamic_player_domain(self, html):
