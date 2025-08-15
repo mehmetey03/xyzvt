@@ -1,7 +1,9 @@
 name: XYZ Sports M3U
 
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'   # Her 15 dakikada bir (UTC)
+  workflow_dispatch:          # Manuel tetikleme
 
 jobs:
   build:
@@ -29,5 +31,4 @@ jobs:
           git commit -m "Update xyzvt.m3u"
           git push
         env:
-          # GitHub token otomatik olarak sağlanır
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
