@@ -23,12 +23,16 @@ jobs:
       - name: Scripti çalıştır
         run: python xyzsports.py
 
-      - name: Repo'ya commit et
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add xyzvt.m3u
-          git commit -m "Update xyzvt.m3u"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Repo'ya commit et
+    run: |
+    git config user.name "github-actions"
+    git config user.email "github-actions@github.com"
+    git add xyzvt.m3u
+    if ! git diff --cached --quiet; then
+      git commit -m "Update xyzvt.m3u"
+      git push
+    else
+      echo "Değişiklik yok, commit atılmadı."
+    fi
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
