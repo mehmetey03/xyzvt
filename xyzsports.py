@@ -1,11 +1,12 @@
+# xyzsports.py
 from httpx import Client
 import re
 import os
 import sys
+from datetime import datetime
 
 class XYZsportsManager:
     def __init__(self, cikti_dosyasi):
-        # Kesin path kullanıyoruz
         self.cikti_dosyasi = os.path.join(os.getcwd(), cikti_dosyasi)
         self.httpx = Client(timeout=10, verify=False, http2=True)
         self.channel_ids = [
@@ -15,6 +16,15 @@ class XYZsportsManager:
             "trt-spor", "trt-spor-2", "aspor", "s-sport",
             "s-sport-2", "s-sport-plus-1", "s-sport-plus-2"
         ]
+
+    def _write_placeholder(self, reason: str):
+        placeholder = [
+            "#EXTM3U",
+            f"# Playlist oluşturulamadı: {reason}",
+            f"# Zaman: {datetime.utcnow().isoformat()}Z"
+        ]
+        with open(self.cikti_dosyasi, "w", encoding="utf-8") as f:
+            f.write("\n".join(placeholder))
 
     def find_working_domain(self, start=248, end=350):
         headers = {"User-Agent": "Mozilla/5.0"}
@@ -63,11 +73,15 @@ class XYZsportsManager:
         try:
             html, referer_url = self.find_working_domain()
             if not html:
-                raise RuntimeError("Çalışan domain bulunamadı!")
-            
+                self._write_placeholder("Çalışan domain bulunamadı")
+                print("Uyarı: Çalışan domain bulunamadı, placeholder M3U yazıldı.")
+                sys.exit(0)
+
             player_domain = self.find_dynamic_player_domain(html)
             if not player_domain:
-                raise RuntimeError("Player domain bulunamadı!")
+                self._write_placeholder("Player domain bulunamadı")
+                print("Uyarı: Player domain bulunamadı, placeholder M3U yazıldı.")
+                sys.exit(0)
 
             r = self.httpx.get(
                 f"{player_domain}/index.php?id={self.channel_ids[0]}",
@@ -76,22 +90,24 @@ class XYZsportsManager:
                     "Referer": referer_url
                 }
             )
-            
+
             base_url = self.extract_base_stream_url(r.text)
             if not base_url:
-                raise RuntimeError("Base stream URL bulunamadı!")
+                self._write_placeholder("Base stream URL bulunamadı")
+                print("Uyarı: Base stream URL bulunamadı, placeholder M3U yazıldı.")
+                sys.exit(0)
 
             m3u_icerik = self.build_m3u8_content(base_url, referer_url)
 
             with open(self.cikti_dosyasi, "w", encoding="utf-8") as f:
                 f.write(m3u_icerik)
-            
-            print(f"\nM3U dosyası başarıyla oluşturuldu: {self.cikti_dosyasi}")
+
+            print(f"M3U dosyası oluşturuldu: {self.cikti_dosyasi}")
             print(f"Toplam kanal sayısı: {len(self.channel_ids)}")
-            
+
         except Exception as e:
-            print(f"\nHATA: {str(e)}")
-            # workflow artifact step çalışsın diye exit code 0 yapabiliriz
+            self._write_placeholder(f"Beklenmeyen hata: {str(e)}")
+            print(f"HATA: {str(e)} (placeholder M3U yazıldı)")
             sys.exit(0)
 
 if __name__ == "__main__":
