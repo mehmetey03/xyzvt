@@ -1,0 +1,28 @@
+name: XYZ Sports M3U
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kodları al
+        uses: actions/checkout@v4
+
+      - name: Python kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Gerekli kütüphaneler
+        run: pip install httpx
+
+      - name: Scripti çalıştır
+        run: python xyzsports.py
+
+      - name: M3U dosyasını yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: xyzvt
+          path: xyzvt.m3u
