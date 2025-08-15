@@ -5,7 +5,6 @@ import sys
 class XYZsportsManager:
     def __init__(self, cikti_dosyasi):
         self.cikti_dosyasi = cikti_dosyasi
-        # http2 kapalı, verify kapalı; Actions ortamında sorun çıkmaz
         self.httpx = Client(timeout=10, verify=False)
         self.channel_ids = [
             "bein-sports-1", "bein-sports-2", "bein-sports-3",
@@ -18,7 +17,6 @@ class XYZsportsManager:
     def find_working_domain(self, start=248, end=350):
         headers = {"User-Agent": "Mozilla/5.0"}
 
-        # Öncelikle sabit bildiğimiz domaini dene
         fixed_domain = 248
         fixed_url = f"https://www.xyzsports{fixed_domain}.xyz/"
         try:
@@ -27,9 +25,8 @@ class XYZsportsManager:
             if r.status_code == 200 and "uxsyplayer" in r.text:
                 return r.text, fixed_url
         except Exception as e:
-            print(f"Hata ({fixed_url}): {e}")
+            print(f"Sabit domain hatası: {e}")
 
-        # Sabit domain çalışmazsa tarama yap
         for i in range(start, end + 1):
             url = f"https://www.xyzsports{i}.xyz/"
             try:
@@ -46,15 +43,11 @@ class XYZsportsManager:
 
     def find_dynamic_player_domain(self, html):
         m = re.search(r'https?://([a-z0-9\-]+\.[0-9a-z]+\.click)', html)
-        if m:
-            return f"https://{m.group(1)}"
-        return None
+        return f"https://{m.group(1)}" if m else None
 
     def extract_base_stream_url(self, html):
         m = re.search(r'this\.baseStreamUrl\s*=\s*[\'"]([^\'"]+)', html)
-        if m:
-            return m.group(1)
-        return None
+        return m.group(1) if m else None
 
     def build_m3u8_content(self, base_stream_url, referer_url):
         m3u = ["#EXTM3U"]
@@ -75,13 +68,10 @@ class XYZsportsManager:
         if not player_domain:
             raise RuntimeError("Player domain bulunamadı!")
 
-        r = self.httpx.get(
-            f"{player_domain}/index.php?id={self.channel_ids[0]}",
-            headers={
-                "User-Agent": "Mozilla/5.0",
-                "Referer": referer_url
-            }
-        )
+        r = self.httpx.get(f"{player_domain}/index.php?id={self.channel_ids[0]}", headers={
+            "User-Agent": "Mozilla/5.0",
+            "Referer": referer_url
+        })
         base_url = self.extract_base_stream_url(r.text)
         if not base_url:
             raise RuntimeError("Base stream URL bulunamadı!")
@@ -93,7 +83,6 @@ class XYZsportsManager:
 
         print(f"M3U dosyası oluşturuldu: {self.cikti_dosyasi}")
         print(f"Toplam kanal sayısı: {len(self.channel_ids)}")
-
 
 if __name__ == "__main__":
     try:
