@@ -1,5 +1,6 @@
 from httpx import Client
 import re
+import os
 import sys
 
 class XYZsportsManager:
@@ -17,6 +18,7 @@ class XYZsportsManager:
     def find_working_domain(self, start=248, end=350):
         headers = {"User-Agent": "Mozilla/5.0"}
 
+        # Önce sabit bildiğimiz domaini dene
         fixed_domain = 248
         fixed_url = f"https://www.xyzsports{fixed_domain}.xyz/"
         try:
@@ -27,6 +29,7 @@ class XYZsportsManager:
         except Exception as e:
             print(f"Sabit domain hatası: {e}")
 
+        # Sabit çalışmazsa tarama yap
         for i in range(start, end + 1):
             url = f"https://www.xyzsports{i}.xyz/"
             try:
@@ -39,15 +42,20 @@ class XYZsportsManager:
             except Exception as e:
                 print(f"Hata ({url}): {e}")
                 continue
+
         return None, None
 
     def find_dynamic_player_domain(self, html):
         m = re.search(r'https?://([a-z0-9\-]+\.[0-9a-z]+\.click)', html)
-        return f"https://{m.group(1)}" if m else None
+        if m:
+            return f"https://{m.group(1)}"
+        return None
 
     def extract_base_stream_url(self, html):
         m = re.search(r'this\.baseStreamUrl\s*=\s*[\'"]([^\'"]+)', html)
-        return m.group(1) if m else None
+        if m:
+            return m.group(1)
+        return None
 
     def build_m3u8_content(self, base_stream_url, referer_url):
         m3u = ["#EXTM3U"]
