@@ -95,4 +95,4 @@ class XYZsportsManager:
             sys.exit(1)
 
 if __name__ == "__main__":
-    XYZsportsManager("Umitmod.m3u").calistir()
+    XYZsportsManager("xyzvt.m3u").calistir()  
