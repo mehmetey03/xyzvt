@@ -1,14 +1,12 @@
-# xyzsports.py
 from httpx import Client
 import re
-import os
 import sys
-from datetime import datetime
 
 class XYZsportsManager:
     def __init__(self, cikti_dosyasi):
-        self.cikti_dosyasi = os.path.join(os.getcwd(), cikti_dosyasi)
-        self.httpx = Client(timeout=10, verify=False, http2=True)
+        self.cikti_dosyasi = cikti_dosyasi
+        # http2 kapalı, verify kapalı; Actions ortamında sorun çıkmaz
+        self.httpx = Client(timeout=10, verify=False)
         self.channel_ids = [
             "bein-sports-1", "bein-sports-2", "bein-sports-3",
             "bein-sports-4", "bein-sports-5", "bein-sports-max-1",
@@ -17,17 +15,21 @@ class XYZsportsManager:
             "s-sport-2", "s-sport-plus-1", "s-sport-plus-2"
         ]
 
-    def _write_placeholder(self, reason: str):
-        placeholder = [
-            "#EXTM3U",
-            f"# Playlist oluşturulamadı: {reason}",
-            f"# Zaman: {datetime.utcnow().isoformat()}Z"
-        ]
-        with open(self.cikti_dosyasi, "w", encoding="utf-8") as f:
-            f.write("\n".join(placeholder))
-
     def find_working_domain(self, start=248, end=350):
         headers = {"User-Agent": "Mozilla/5.0"}
+
+        # Öncelikle sabit bildiğimiz domaini dene
+        fixed_domain = 248
+        fixed_url = f"https://www.xyzsports{fixed_domain}.xyz/"
+        try:
+            r = self.httpx.get(fixed_url, headers=headers)
+            print(f"Öncelikle sabit domain deneniyor: {fixed_url} | Durum: {r.status_code}")
+            if r.status_code == 200 and "uxsyplayer" in r.text:
+                return r.text, fixed_url
+        except Exception as e:
+            print(f"Hata ({fixed_url}): {e}")
+
+        # Sabit domain çalışmazsa tarama yap
         for i in range(start, end + 1):
             url = f"https://www.xyzsports{i}.xyz/"
             try:
@@ -38,25 +40,20 @@ class XYZsportsManager:
                 else:
                     print(f"Denenen domain: {url} | Durum: {r.status_code}")
             except Exception as e:
-                print(f"Hata ({url}): {str(e)}")
+                print(f"Hata ({url}): {e}")
                 continue
         return None, None
 
     def find_dynamic_player_domain(self, html):
         m = re.search(r'https?://([a-z0-9\-]+\.[0-9a-z]+\.click)', html)
         if m:
-            player_url = f"https://{m.group(1)}"
-            print(f"Player domain bulundu: {player_url}")
-            return player_url
-        print("Player domain bulunamadı!")
+            return f"https://{m.group(1)}"
         return None
 
     def extract_base_stream_url(self, html):
         m = re.search(r'this\.baseStreamUrl\s*=\s*[\'"]([^\'"]+)', html)
         if m:
-            print(f"Base stream URL bulundu: {m.group(1)}")
             return m.group(1)
-        print("Base stream URL bulunamadı!")
         return None
 
     def build_m3u8_content(self, base_stream_url, referer_url):
@@ -70,45 +67,37 @@ class XYZsportsManager:
         return "\n".join(m3u)
 
     def calistir(self):
-        try:
-            html, referer_url = self.find_working_domain()
-            if not html:
-                self._write_placeholder("Çalışan domain bulunamadı")
-                print("Uyarı: Çalışan domain bulunamadı, placeholder M3U yazıldı.")
-                sys.exit(0)
+        html, referer_url = self.find_working_domain()
+        if not html:
+            raise RuntimeError("Çalışan domain bulunamadı!")
 
-            player_domain = self.find_dynamic_player_domain(html)
-            if not player_domain:
-                self._write_placeholder("Player domain bulunamadı")
-                print("Uyarı: Player domain bulunamadı, placeholder M3U yazıldı.")
-                sys.exit(0)
+        player_domain = self.find_dynamic_player_domain(html)
+        if not player_domain:
+            raise RuntimeError("Player domain bulunamadı!")
 
-            r = self.httpx.get(
-                f"{player_domain}/index.php?id={self.channel_ids[0]}",
-                headers={
-                    "User-Agent": "Mozilla/5.0",
-                    "Referer": referer_url
-                }
-            )
+        r = self.httpx.get(
+            f"{player_domain}/index.php?id={self.channel_ids[0]}",
+            headers={
+                "User-Agent": "Mozilla/5.0",
+                "Referer": referer_url
+            }
+        )
+        base_url = self.extract_base_stream_url(r.text)
+        if not base_url:
+            raise RuntimeError("Base stream URL bulunamadı!")
 
-            base_url = self.extract_base_stream_url(r.text)
-            if not base_url:
-                self._write_placeholder("Base stream URL bulunamadı")
-                print("Uyarı: Base stream URL bulunamadı, placeholder M3U yazıldı.")
-                sys.exit(0)
+        m3u_icerik = self.build_m3u8_content(base_url, referer_url)
 
-            m3u_icerik = self.build_m3u8_content(base_url, referer_url)
+        with open(self.cikti_dosyasi, "w", encoding="utf-8") as f:
+            f.write(m3u_icerik)
 
-            with open(self.cikti_dosyasi, "w", encoding="utf-8") as f:
-                f.write(m3u_icerik)
+        print(f"M3U dosyası oluşturuldu: {self.cikti_dosyasi}")
+        print(f"Toplam kanal sayısı: {len(self.channel_ids)}")
 
-            print(f"M3U dosyası oluşturuldu: {self.cikti_dosyasi}")
-            print(f"Toplam kanal sayısı: {len(self.channel_ids)}")
-
-        except Exception as e:
-            self._write_placeholder(f"Beklenmeyen hata: {str(e)}")
-            print(f"HATA: {str(e)} (placeholder M3U yazıldı)")
-            sys.exit(0)
 
 if __name__ == "__main__":
-    XYZsportsManager("xyzvt.m3u").calistir()
+    try:
+        XYZsportsManager("xyzvt.m3u").calistir()
+    except Exception as e:
+        print(f"HATA: {e}")
+        sys.exit(1)
